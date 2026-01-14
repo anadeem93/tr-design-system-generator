@@ -37,7 +37,8 @@ jobs:
 
       - name: 'Enable required APIs'
         run: |
-          gcloud services enable cloudbuild.googleapis.com run.googleapis.com containerregistry.googleapis.com --quiet
+          # Try to enable APIs, but don't fail if permission is denied (APIs may already be enabled)
+          gcloud services enable cloudbuild.googleapis.com run.googleapis.com containerregistry.googleapis.com --quiet || echo "⚠️  Could not enable APIs (may already be enabled or require manual setup)"
 
       - name: 'Deploy to Cloud Run'
         run: |
