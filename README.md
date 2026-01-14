@@ -2,6 +2,8 @@
 
 **Autonomous AI-powered design system creation from product ideas to production-ready component libraries.**
 
+> Built by [Technology Rivers](https://technologyrivers.com) • Powered by CrewAI • Multi-agent autonomous design system generation
+
 Transform product concepts into complete design systems with 24+ production-ready React components, comprehensive documentation, automated testing, and professional build pipelines.
 
 ---
@@ -31,19 +33,33 @@ Transform product concepts into complete design systems with 24+ production-read
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.8+
-- Node.js 16+
-- Basic understanding of React/TypeScript
+- Python 3.11+
+- Node.js 16+ (for component development)
+- Google Cloud account (for deployment)
+- API Key for AI models (OpenAI, Anthropic, or Gemini)
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone <repository-url>
-cd design-system-agent
+git clone https://github.com/anadeem93/tr-design-system-generator.git
+cd tr-design-system-generator
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install Python dependencies
 pip install -r requirements.txt
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env and add your API keys:
+# OPENAI_API_KEY=your-key-here
+# or
+# ANTHROPIC_API_KEY=your-key-here
+# or
+# GEMINI_API_KEY=your-key-here
 
 # The system is ready to use!
 ```
@@ -74,11 +90,17 @@ print(f"Generated {len(result.component_library.components)} components!")
 
 ```bash
 # Start the web application
-uvicorn web.app:app --reload
+uvicorn web.app:app --reload --host 0.0.0.0 --port 8000
 
 # Open http://localhost:8000
 # Use the interface to generate design systems visually
 ```
+
+### Live Demo
+
+🌐 **Live Service**: [https://design-system-agent-gcvncybjua-uc.a.run.app](https://design-system-agent-gcvncybjua-uc.a.run.app)
+
+The service is deployed on Google Cloud Run and ready to use!
 
 ---
 
@@ -345,7 +367,60 @@ npm run storybook
 
 ---
 
-## 🚀 Deployment & Build
+## 🚀 Deployment
+
+### Google Cloud Run (Recommended)
+
+The project includes automated CI/CD via GitHub Actions. To set up:
+
+1. **Create a Google Cloud Service Account:**
+   ```bash
+   gcloud iam service-accounts create github-actions \
+     --display-name="GitHub Actions Service Account"
+   
+   gcloud projects add-iam-policy-binding design-system-agent \
+     --member="serviceAccount:github-actions@design-system-agent.iam.gserviceaccount.com" \
+     --role="roles/run.admin"
+   
+   gcloud iam service-accounts keys create key.json \
+     --iam-account=github-actions@design-system-agent.iam.gserviceaccount.com
+   ```
+
+2. **Add GitHub Secret:**
+   - Go to GitHub repository → Settings → Secrets → Actions
+   - Add secret: `GCP_SA_KEY` with the contents of `key.json`
+
+3. **Automatic Deployment:**
+   - Every push to `main` branch automatically deploys to Cloud Run
+   - View deployments in the Actions tab
+
+### Manual Deployment
+
+```bash
+# Quick deploy using the deployment script
+chmod +x deploy-gcloud.sh
+./deploy-gcloud.sh
+
+# Or deploy directly
+gcloud run deploy design-system-agent \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --memory 1Gi \
+  --timeout 300
+```
+
+### Other Platforms
+
+See [DEPLOYMENT_OPTIONS.md](DEPLOYMENT_OPTIONS.md) for:
+- Vercel deployment
+- Railway
+- Render
+- Fly.io
+- Docker + VPS
+
+## 📦 Build & Development
 
 ### Build Configuration
 - **Rollup**: Module bundling with tree shaking
@@ -632,4 +707,14 @@ MIT License - feel free to use, modify, and distribute.
 
 ---
 
-**Built with CrewAI • Powered by GPT-4 • Inspired by real design systems at Stripe, Airbnb, and Shopify**
+---
+
+## 📞 Support & Contact
+
+- **Website**: [Technology Rivers](https://technologyrivers.com)
+- **Repository**: [GitHub](https://github.com/anadeem93/tr-design-system-generator)
+- **Issues**: [GitHub Issues](https://github.com/anadeem93/tr-design-system-generator/issues)
+
+---
+
+**Built by [Technology Rivers](https://technologyrivers.com) • Powered by CrewAI • Multi-agent autonomous design system generation**
