@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Design Token Editor - Technology Rivers</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .color-preview {
+            width: 100%;
+            height: 60px;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+            transition: transform 0.2s;
+        }
+        .color-preview:hover {
+            transform: scale(1.05);
+        }
+        .contrast-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .contrast-aa { background: #10b981; color: white; }
+        .contrast-aaa { background: #059669; color: white; }
+        .contrast-fail { background: #ef4444; color: white; }
+        .spacing-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #6366f1;
+            cursor: pointer;
+        }
+        .spacing-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #6366f1;
+            cursor: pointer;
+            border: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="max-w-7xl mx-auto py-8 px-4">
+        <!-- Header -->
+        <div class="mb-8">
+            <a href="/" class="text-indigo-600 hover:underline mb-4 inline-block">← Back to Generator</a>
+            <h1 class="text-3xl font-bold text-gray-900">Visual Design Token Editor</h1>
+            <p class="text-gray-600 mt-2">Edit your design tokens with real-time preview</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Editor Panel -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Colors Section -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-semibold">Color Palette</h2>
+                        <button id="addColorBtn" class="text-sm bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700">
+                            + Add Color
+                        </button>
+                    </div>
+                    <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+                        <p class="text-xs text-gray-600">
+                            💡 Drag colors to reorder • Click to edit • Colors are grouped by role
+                        </p>
+                    </div>
+                    <div id="colorsEditor" class="space-y-4"></div>
+                </div>
+
+                <!-- Typography Section -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-xl font-semibold mb-4">Typography Scale</h2>
+                    <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+                        <p class="text-xs text-gray-600">
+                            📏 Visual typography scale with live preview
+                        </p>
+                    </div>
+                    <div id="typographyEditor" class="space-y-4"></div>
+                </div>
+
+                <!-- Spacing Section -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-xl font-semibold mb-4">Spacing Scale</h2>
+                    <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+                        <p class="text-xs text-gray-600">
+                            📐 Visual spacing scale with interactive preview
+                        </p>
+                    </div>
+                    <div id="spacingEditor" class="space-y-4"></div>
+                </div>
+            </div>
+
+            <!-- Preview Panel -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-lg shadow p-6 sticky top-4">
+                    <h2 class="text-xl font-semibold mb-4">Live Preview</h2>
+                    <div id="livePreview" class="space-y-4">
+                        <div class="p-4 border rounded-lg">
+                            <h3 class="text-lg font-semibold mb-2">Sample Heading</h3>
+                            <p class="text-sm text-gray-600 mb-4">This is sample body text to preview your typography settings.</p>
+                            <button class="px-4 py-2 rounded bg-primary-500 text-white">Primary Button</button>
+                        </div>
+                    </div>
+                    <div class="mt-6 space-y-3">
+                        <button id="exportBtn" class="w-full bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700 transition-colors">
+                            📥 Export Tokens
+                        </button>
+                        <button id="loadBtn" class="w-full bg-gray-200 text-gray-700 py-2 px-4 rounded hover:bg-gray-300 transition-colors">
+                            📂 Load from File
+                        </button>
+                        <input type="file" id="fileInput" accept=".json" class="hidden">
+                    </div>
+                    <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+                        <p class="text-xs text-blue-800">
+                            💡 <strong>Tip:</strong> Changes are saved automatically to your browser's local storage.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/color-utils.js"></script>
+    <script src="/static/js/editor.js"></script>
+    <script>
+        // File load handler
+        document.addEventListener('DOMContentLoaded', () => {
+            const loadBtn = document.getElementById('loadBtn');
+            const fileInput = document.getElementById('fileInput');
+            
+            if (loadBtn && fileInput) {
+                loadBtn.addEventListener('click', () => {
+                    fileInput.click();
+                });
+                
+                fileInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            try {
+                                const data = JSON.parse(event.target.result);
+                                if (data.colors || data.typography || data.spacing) {
+                                    tokens = data;
+                                    renderColorsEditor();
+                                    renderTypographyEditor();
+                                    renderSpacingEditor();
+                                    updatePreview();
+                                    showNotification('Tokens loaded successfully', 'success');
+                                } else {
+                                    showNotification('Invalid token file format', 'error');
+                                }
+                            } catch (error) {
+                                showNotification('Error reading file: ' + error.message, 'error');
+                            }
+                        };
+                        reader.readAsText(file);
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

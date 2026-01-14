@@ -4,9 +4,10 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models import DesignPrinciples, DesignTokens, ColorToken, TypographyToken, SpacingToken, ColorRationale
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Dict, Any
 import colorsys
 import json
+import hashlib
 from litellm import completion
 from dotenv import load_dotenv
 from agents.knowledge_base import KnowledgeBase
@@ -20,34 +21,103 @@ class VisualIdentityAgent:
 
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
-        self.model = os.getenv("MODEL_NAME", "gemini/gemini-1.5-pro-latest")
+        # Auto-detect model based on API key if MODEL_NAME not explicitly set
+        if os.getenv("MODEL_NAME"):
+            self.model = os.getenv("MODEL_NAME")
+        elif os.getenv("GEMINI_API_KEY"):
+            self.model = "gemini/gemini-1.5-pro-latest"
+        elif os.getenv("OPENAI_API_KEY"):
+            self.model = "gpt-5"  # Best for complex reasoning and structured JSON output
+        elif os.getenv("ANTHROPIC_API_KEY"):
+            self.model = "claude-3-5-sonnet-20241022"
+        else:
+            self.model = "gemini/gemini-1.5-pro-latest"  # fallback default
 
-    def generate_color_system(self, principles: DesignPrinciples) -> Tuple[list[ColorToken], Optional[ColorRationale]]:
+    def generate_color_system(self, principles: DesignPrinciples, product_idea: str = "") -> Tuple[list[ColorToken], Optional[ColorRationale], Optional[List[Dict[str, Any]]]]:
         """Generate a complete color system based on design principles with industry context."""
         industry = principles.industry_context.industry if principles.industry_context else "unknown"
         industry_colors = KnowledgeBase.get_industry_color_suggestions(industry)
         
         if self.api_key:
             try:
-                prompt = PromptTemplates.visual_identity_color_prompt(principles, industry, industry_colors)
+                prompt = PromptTemplates.visual_identity_color_prompt(principles, industry, industry_colors, product_idea)
                 
+                # Use higher temperature for more creative/diverse color generation
                 response = completion(
                     model=self.model,
                     messages=[{"role": "user", "content": prompt}],
-                    response_format={"type": "json_object"}
+                    response_format={"type": "json_object"},
+                    temperature=0.9  # Higher temperature for more variation
                 )
                 
                 data = json.loads(response.choices[0].message.content)
-                primary_hex = data.get('primary')
-                neutral_hex = data.get('neutral')
-                accent_hex = data.get('accent', None)
-                rationale_text = data.get('rationale', '')
+                
+                # Check for new format with recommendations
+                recommendations_data = data.get('primary_recommendations')
+                if recommendations_data and isinstance(recommendations_data, list) and len(recommendations_data) > 0:
+                    # New format with multiple recommendations
+                    primary_recommendations = []
+                    for rec in recommendations_data[:3]:  # Take up to 3 recommendations
+                        primary_hex = rec.get('primary')
+                        secondary_hex = rec.get('secondary')
+                        rationale = rec.get('rationale', '')
+                        
+                        if primary_hex and primary_hex.startswith('#') and secondary_hex and secondary_hex.startswith('#'):
+                            primary_recommendations.append({
+                                'primary': primary_hex,
+                                'secondary': secondary_hex,
+                                'rationale': rationale
+                            })
+                    
+                    if not primary_recommendations:
+                        raise ValueError("No valid recommendations found")
+                    
+                    # Use first recommendation as default
+                    selected_rec = primary_recommendations[0]
+                    primary_hex = selected_rec['primary']
+                    secondary_hex = selected_rec['secondary']
+                    neutral_hex = data.get('neutral')
+                    accent_hex = data.get('accent', None)
+                    overall_rationale = data.get('overall_rationale', '')
+                    recommendation_rationales = [rec['rationale'] for rec in primary_recommendations]
+                else:
+                    # Legacy format - single primary (backward compatibility)
+                    primary_hex = data.get('primary')
+                    neutral_hex = data.get('neutral')
+                    accent_hex = data.get('accent', None)
+                    rationale_text = data.get('rationale', '')
+                    secondary_hex = None
+                    primary_recommendations = None
+                    overall_rationale = rationale_text
+                    recommendation_rationales = None
                 
                 # Validate hex format
                 if not primary_hex or not primary_hex.startswith('#'):
                     raise ValueError("Invalid primary color format")
                 if not neutral_hex or not neutral_hex.startswith('#'):
                     raise ValueError("Invalid neutral color format")
+                
+                # Add seed-based variation to AI-generated colors to ensure diversity
+                if product_idea:
+                    seed = int(hashlib.md5(product_idea.encode()).hexdigest()[:8], 16)
+                    # Convert hex to HSL
+                    r = int(primary_hex[1:3], 16) / 255
+                    g = int(primary_hex[3:5], 16) / 255
+                    b = int(primary_hex[5:7], 16) / 255
+                    h, l, s = colorsys.rgb_to_hls(r, g, b)
+                    
+                    # Add seed-based variation to ensure different products get different colors
+                    # Use different parts of the seed for different variations
+                    hue_shift = ((seed % 30) + 10) / 360.0  # 10-40 degrees variation (more noticeable)
+                    saturation_shift = ((seed % 11) - 5) / 100.0  # ±5% saturation variation
+                    lightness_shift = ((seed % 7) - 3) / 100.0  # ±3% lightness variation
+                    
+                    varied_hue = (h + hue_shift) % 1.0
+                    varied_saturation = max(0.3, min(0.9, s + saturation_shift))
+                    varied_lightness = max(0.25, min(0.55, l + lightness_shift))
+                    
+                    primary_hex = self.hsl_to_hex(varied_hue, varied_saturation, varied_lightness)
+                    print(f"🎨 Applied seed-based variation to AI color (seed: {seed % 1000})")
                 
                 # Check primary color contrast (AI should generate accessible colors from the start)
                 contrast = Validator.get_contrast_ratio(primary_hex, "#FFFFFF")
@@ -61,6 +131,14 @@ class VisualIdentityAgent:
                 colors = self.generate_scale_from_hex(primary_hex, "primary")
                 colors.extend(self.generate_scale_from_hex(neutral_hex, "neutral", saturation_mult=0.05))
                 
+                # Add secondary color scale if provided
+                if secondary_hex and secondary_hex.startswith('#'):
+                    # Ensure secondary color is accessible
+                    contrast = Validator.get_contrast_ratio(secondary_hex, "#FFFFFF")
+                    if contrast < 4.5:
+                        secondary_hex = self.ensure_contrast(secondary_hex, "#FFFFFF", min_contrast=4.5)
+                    colors.extend(self.generate_scale_from_hex(secondary_hex, "secondary"))
+                
                 # Add accent if provided
                 if accent_hex and accent_hex.startswith('#'):
                     colors.extend(self.generate_scale_from_hex(accent_hex, "accent"))
@@ -70,38 +148,135 @@ class VisualIdentityAgent:
                 
                 # Create color rationale
                 rationale = ColorRationale(
-                    primary=rationale_text or f"Primary color ({primary_hex}) selected to align with {industry} industry standards and design principles.",
-                    neutral=rationale_text or f"Neutral color ({neutral_hex}) chosen to complement primary and support {principles.density} density UI.",
-                    accent=rationale_text or f"Accent color ({accent_hex}) provides visual interest and supports brand identity." if accent_hex else "No accent color specified.",
-                    overall=rationale_text or f"Color system designed for {industry} with {principles.warmth}/10 warmth and {principles.philosophy} philosophy."
+                    primary=overall_rationale or f"Primary color ({primary_hex}) selected to align with {industry} industry standards and design principles.",
+                    neutral=overall_rationale or f"Neutral color ({neutral_hex}) chosen to complement primary and support {principles.density} density UI.",
+                    accent=overall_rationale or f"Accent color ({accent_hex}) provides visual interest and supports brand identity." if accent_hex else "No accent color specified.",
+                    secondary=f"Secondary color ({secondary_hex}) complements the primary color." if secondary_hex else None,
+                    recommendations=recommendation_rationales,
+                    overall=overall_rationale or f"Color system designed for {industry} with {principles.warmth}/10 warmth and {principles.philosophy} philosophy."
                 )
                 
-                return colors, rationale
+                return colors, rationale, primary_recommendations
             except Exception as e:
                 print(f"AI Color generation failed, falling back to rules: {e}")
 
-        # Fallback to rule-based logic with industry context
+        # Fallback to rule-based logic with industry context and seed-based variation
         if industry_colors:
             primary_hex = industry_colors.get('primary')
             neutral_hex = industry_colors.get('neutral')
             accent_hex = industry_colors.get('accent')
         else:
-            # Generate based on warmth
-            base_hue = 0.6 if principles.warmth <= 3 else (0.1 if principles.warmth >= 7 else 0.5)
-            primary_hex = self.hsl_to_hex(base_hue, 0.7, 0.5)
+            # Generate seed from product_idea for deterministic variation
+            seed = 0
+            if product_idea:
+                seed = int(hashlib.md5(product_idea.encode()).hexdigest()[:8], 16)
+            
+            # Base hue based on warmth, then add seed-based variation
+            if principles.warmth <= 3:
+                base_hue = 0.6  # Cool (blue)
+            elif principles.warmth >= 7:
+                base_hue = 0.1   # Warm (red/orange)
+            else:
+                base_hue = 0.5  # Balanced (teal/purple)
+            
+            # Add seed-based variation (0-120 degrees) to ensure different products get different colors
+            # Use more of the seed to get better distribution
+            hue_variation = (seed % 120) / 360.0  # 0-120 degrees (1/3 of color wheel)
+            varied_hue = (base_hue + hue_variation) % 1.0
+            
+            # Vary saturation based on seed (0.5-0.85 range for more diversity)
+            base_saturation = 0.7
+            saturation_variation = 0.35 * ((seed % 20) / 20.0)  # More variation
+            varied_saturation = base_saturation - 0.2 + saturation_variation
+            varied_saturation = max(0.5, min(0.85, varied_saturation))
+            
+            # Vary lightness based on seed (0.3-0.5 range for accessibility)
+            base_lightness = 0.4
+            lightness_variation = 0.2 * ((seed % 10) / 10.0)  # More variation
+            varied_lightness = base_lightness - 0.1 + lightness_variation
+            varied_lightness = max(0.3, min(0.5, varied_lightness))
+            
+            print(f"🎨 Generated fallback color with seed-based variation (seed: {seed % 1000}, hue: {varied_hue:.3f})")
+            
+            primary_hex = self.hsl_to_hex(varied_hue, varied_saturation, varied_lightness)
             neutral_hex = "#64748b"
             accent_hex = None
         
-        # Check primary color contrast (AI should generate accessible colors from the start)
+        # Generate 3 recommendations for fallback
+        primary_recommendations = []
+        seed = int(hashlib.md5(product_idea.encode()).hexdigest()[:8], 16) if product_idea else 0
+        
+        # Generate 3 different primary colors with variations
+        for i in range(3):
+            # Use different parts of seed for each recommendation
+            rec_seed = (seed + i * 1000) % 1000000
+            
+            if industry_colors and i == 0:
+                # First recommendation uses industry color
+                rec_primary = industry_colors.get('primary')
+            else:
+                # Generate variation based on warmth
+                if principles.warmth <= 3:
+                    base_hue = 0.6  # Cool (blue)
+                elif principles.warmth >= 7:
+                    base_hue = 0.1   # Warm (red/orange)
+                else:
+                    base_hue = 0.5  # Balanced (teal/purple)
+                
+                # Add variation for each recommendation
+                hue_variation = ((rec_seed % 120) + i * 40) / 360.0
+                varied_hue = (base_hue + hue_variation) % 1.0
+                varied_saturation = 0.5 + ((rec_seed % 20) / 40.0)  # 0.5-1.0
+                varied_lightness = 0.35 + ((rec_seed % 10) / 30.0)  # 0.35-0.65
+                varied_lightness = max(0.3, min(0.5, varied_lightness))
+                
+                rec_primary = self.hsl_to_hex(varied_hue, varied_saturation, varied_lightness)
+            
+            # Generate complementary secondary color
+            r = int(rec_primary[1:3], 16) / 255
+            g = int(rec_primary[3:5], 16) / 255
+            b = int(rec_primary[5:7], 16) / 255
+            h, l, s = colorsys.rgb_to_hls(r, g, b)
+            
+            # Complementary color (opposite on color wheel)
+            comp_hue = (h + 0.5) % 1.0
+            comp_saturation = min(0.8, s + 0.1)
+            comp_lightness = max(0.3, min(0.5, l))
+            rec_secondary = self.hsl_to_hex(comp_hue, comp_saturation, comp_lightness)
+            
+            # Ensure accessibility
+            if Validator.get_contrast_ratio(rec_primary, "#FFFFFF") < 4.5:
+                rec_primary = self.ensure_contrast(rec_primary, "#FFFFFF", min_contrast=4.5)
+            if Validator.get_contrast_ratio(rec_secondary, "#FFFFFF") < 4.5:
+                rec_secondary = self.ensure_contrast(rec_secondary, "#FFFFFF", min_contrast=4.5)
+            
+            primary_recommendations.append({
+                'primary': rec_primary,
+                'secondary': rec_secondary,
+                'rationale': f"Recommendation {i+1}: Primary {rec_primary} with complementary secondary {rec_secondary}."
+            })
+        
+        # Use first recommendation as default
+        selected_rec = primary_recommendations[0]
+        primary_hex = selected_rec['primary']
+        secondary_hex = selected_rec['secondary']
+        
+        # Check primary color contrast
         contrast = Validator.get_contrast_ratio(primary_hex, "#FFFFFF")
         if contrast < 4.5:
-            # Only adjust if absolutely necessary (AI should have generated accessible color)
-            print(f"⚠️  WARNING: Primary color contrast {contrast:.2f} < 4.5. AI should generate accessible colors from the start.")
+            print(f"⚠️  WARNING: Primary color contrast {contrast:.2f} < 4.5. Adjusting...")
             primary_hex = self.ensure_contrast(primary_hex, "#FFFFFF", min_contrast=4.5)
             print(f"✅ Adjusted to {primary_hex} with contrast {Validator.get_contrast_ratio(primary_hex, '#FFFFFF'):.2f}")
         
         colors = self.generate_scale_from_hex(primary_hex, "primary")
         colors.extend(self.generate_scale_from_hex(neutral_hex, "neutral", saturation_mult=0.05))
+        
+        # Add secondary color scale
+        if secondary_hex:
+            contrast = Validator.get_contrast_ratio(secondary_hex, "#FFFFFF")
+            if contrast < 4.5:
+                secondary_hex = self.ensure_contrast(secondary_hex, "#FFFFFF", min_contrast=4.5)
+            colors.extend(self.generate_scale_from_hex(secondary_hex, "secondary"))
         
         if accent_hex:
             colors.extend(self.generate_scale_from_hex(accent_hex, "accent"))
@@ -113,10 +288,12 @@ class VisualIdentityAgent:
             primary=f"Primary color ({primary_hex}) based on industry standards for {industry}.",
             neutral=f"Neutral color ({neutral_hex}) provides balanced base for UI elements.",
             accent=f"Accent color ({accent_hex}) adds visual interest." if accent_hex else "No accent color specified.",
+            secondary=f"Secondary color ({secondary_hex}) complements the primary color." if secondary_hex else None,
+            recommendations=[rec['rationale'] for rec in primary_recommendations],
             overall=f"Color system generated using industry patterns for {industry}."
         )
         
-        return colors, rationale
+        return colors, rationale, primary_recommendations
 
     def generate_scale_from_hex(self, hex_color: str, name: str, saturation_mult: float = 1.0) -> list[ColorToken]:
         """Generate a 50-900 scale from a single hex color."""
@@ -312,10 +489,10 @@ class VisualIdentityAgent:
         
         return semantic_colors
 
-    def generate_design_tokens(self, principles: DesignPrinciples) -> DesignTokens:
+    def generate_design_tokens(self, principles: DesignPrinciples, product_idea: str = "") -> DesignTokens:
         """Generate complete design token system."""
-        # Generate light mode colors with rationale
-        light_colors, color_rationale = self.generate_color_system(principles)
+        # Generate light mode colors with rationale and recommendations
+        light_colors, color_rationale, primary_recommendations = self.generate_color_system(principles, product_idea)
         
         # Generate dark mode colors
         dark_colors = self.generate_dark_color_system(principles)
@@ -349,7 +526,8 @@ class VisualIdentityAgent:
             spacing=self.generate_spacing_system(principles),
             border_radius=border_radius,
             shadows=shadows,
-            color_rationale=color_rationale
+            color_rationale=color_rationale,
+            primary_recommendations=primary_recommendations
         )
 
     def generate_dark_color_system(self, principles: DesignPrinciples) -> list[ColorToken]:

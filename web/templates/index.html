@@ -7,6 +7,7 @@
     <title>Technology Rivers - Design System Generator</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="/static/js/color-utils.js"></script>
     <style>
         /* Force light mode colors throughout - prevent dark mode interference */
         html {
@@ -567,9 +568,23 @@
         }
 
         /* Ensure all text in results is visible */
-        #resultsContent,
+        #resultsContent {
+            color: #166534 !important; /* text-green-700 */
+        }
+        
         #resultsContent * {
             color: #166534 !important; /* text-green-700 */
+        }
+
+        /* Override green text for white text elements on colored backgrounds - must come after the above rule */
+        #resultsContent *[class*="text-white"],
+        #resultsContent .text-white,
+        #resultsContent span.text-white,
+        #resultsContent .bg-indigo-600.text-white,
+        #resultsContent .bg-blue-600.text-white,
+        #resultsContent span.bg-indigo-600.text-white {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
         }
 
         /* Preview pane text */
@@ -809,7 +824,6 @@
                     </p>
                     <textarea id="product_idea" name="product_idea" rows="5"
                         class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
-                        style="focus:border-color: #3399CC !important;"
                         placeholder="Example: A healthcare app for patient management and appointment scheduling, helping doctors and patients connect seamlessly..." required></textarea>
                     <div class="mt-2 text-xs text-gray-400 italic">
                         💡 Tip: Be specific about your product's purpose, industry, and target users for best results
@@ -927,6 +941,14 @@
                                     Color Palette
                                 </h4>
                                 
+                                <!-- Primary Color Recommendations -->
+                                <div class="mb-6" id="primaryRecommendationsSection" style="display: none;">
+                                    <div class="text-sm font-medium text-gray-700 mb-3">Primary Color Recommendations</div>
+                                    <div class="grid grid-cols-3 gap-4 mb-4" id="primaryRecommendations">
+                                        <!-- Will be populated by JavaScript -->
+                                    </div>
+                                </div>
+
                                 <!-- Primary Scale -->
                                 <div class="mb-6">
                                     <div class="text-sm font-medium text-gray-700 mb-3">Primary Scale</div>
@@ -939,6 +961,14 @@
                                 <div class="mb-6">
                                     <div class="text-sm font-medium text-gray-700 mb-3">Neutral Scale</div>
                                     <div id="neutralScale" class="flex gap-1.5 h-16 rounded-lg overflow-hidden shadow-md border border-gray-200">
+                                        <!-- Will be populated by JavaScript -->
+                                    </div>
+                                </div>
+
+                                <!-- Secondary Scale -->
+                                <div class="mb-6" id="secondaryScaleSection" style="display: none;">
+                                    <div class="text-sm font-medium text-gray-700 mb-3">Secondary Scale</div>
+                                    <div id="secondaryScale" class="flex gap-1.5 h-16 rounded-lg overflow-hidden shadow-md border border-gray-200">
                                         <!-- Will be populated by JavaScript -->
                                     </div>
                                 </div>
@@ -1590,7 +1620,7 @@
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                                                 </svg>
                                                 <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Industry</span>
-                                                <span class="text-sm bg-indigo-600 text-white px-3 py-1 rounded-full font-bold">${industry}</span>
+                                                <span class="text-sm bg-indigo-600 text-white px-3 py-1 rounded-full font-bold" style="color: #ffffff !important; -webkit-text-fill-color: #ffffff !important;">${industry}</span>
                                             </div>
                                             <div class="text-lg font-bold text-gray-800 mb-1">${result.data.principles.philosophy}</div>
                                             <div class="text-sm text-gray-600">${result.data.principles.density} density</div>
@@ -1725,12 +1755,526 @@
                             </div>
                         `;
                         
+                        // Build Recommendations Section
+                        const colorRationale = result.data.tokens.color_rationale;
+                        const components = result.data.component_library.components || [];
+                        const topComponents = components.slice(0, 5).map(c => c.name);
+                        const philosophy = result.data.principles.philosophy;
+                        const density = result.data.principles.density;
+                        
+                        // Generate key recommendations
+                        const recommendations = [];
+                        if (philosophy === 'utility-first') {
+                            recommendations.push('Optimized for data-heavy interfaces and complex workflows');
+                        } else if (philosophy === 'brand-led') {
+                            recommendations.push('Designed to emphasize brand identity and visual storytelling');
+                        } else {
+                            recommendations.push('Balanced approach suitable for versatile product needs');
+                        }
+                        
+                        if (density === 'dense') {
+                            recommendations.push('High information density for power users and dashboards');
+                        } else if (density === 'spacious') {
+                            recommendations.push('Generous spacing for clarity and accessibility');
+                        }
+                        
+                        if (result.data.principles.clarity >= 8) {
+                            recommendations.push('High contrast and readability for critical information display');
+                        }
+                        
+                        if (topComponents.length > 0) {
+                            recommendations.push(`Key components: ${topComponents.join(', ')}`);
+                        }
+                        
+                        // Why this system
+                        let whyThisSystem = '';
+                        if (colorRationale?.overall) {
+                            whyThisSystem = colorRationale.overall;
+                        } else {
+                            whyThisSystem = `This design system was crafted specifically for ${industry} applications with ${philosophy} philosophy and ${density} density. The color palette, typography, and component selection are optimized for your product's unique requirements.`;
+                        }
+                        
+                        // Best for
+                        const bestFor = [];
+                        if (industry === 'healthcare' || industry === 'finance') {
+                            bestFor.push('High-stakes applications requiring clarity and trust');
+                        }
+                        if (philosophy === 'utility-first') {
+                            bestFor.push('Data-intensive dashboards and admin panels');
+                        }
+                        if (density === 'dense') {
+                            bestFor.push('Power user interfaces and enterprise software');
+                        }
+                        if (components.some(c => c.name.includes('Table') || c.name.includes('DataTable'))) {
+                            bestFor.push('Applications with complex data visualization needs');
+                        }
+                        if (!bestFor.length) {
+                            bestFor.push('Modern web applications requiring a professional design system');
+                        }
+                        
+                        const recommendationsHtml = `
+                            <div class="mb-6">
+                                <div class="flex items-center gap-2 mb-4">
+                                    <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                                    </svg>
+                                    <div class="text-base font-bold text-gray-800 uppercase tracking-wide">Design System Recommendations</div>
+                                </div>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                    <!-- Key Recommendations -->
+                                    <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-6 shadow-md">
+                                        <div class="flex items-center gap-3 mb-4">
+                                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                            </svg>
+                                            <h4 class="text-lg font-bold text-blue-900">Key Recommendations</h4>
+                                        </div>
+                                        <ul class="space-y-2">
+                                            ${recommendations.map(rec => `
+                                                <li class="flex items-start gap-2 text-sm text-blue-800">
+                                                    <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                    </svg>
+                                                    <span>${rec}</span>
+                                                </li>
+                                            `).join('')}
+                                        </ul>
+                                    </div>
+                                    
+                                    <!-- Why This System -->
+                                    <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200 p-6 shadow-md">
+                                        <div class="flex items-center gap-3 mb-4">
+                                            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                                            </svg>
+                                            <h4 class="text-lg font-bold text-purple-900">Why This System</h4>
+                                        </div>
+                                        <p class="text-sm text-purple-800 leading-relaxed">${whyThisSystem}</p>
+                                    </div>
+                                    
+                                    <!-- Best For -->
+                                    <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 p-6 shadow-md">
+                                        <div class="flex items-center gap-3 mb-4">
+                                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                                            </svg>
+                                            <h4 class="text-lg font-bold text-green-900">Best For</h4>
+                                        </div>
+                                        <ul class="space-y-2">
+                                            ${bestFor.map(useCase => `
+                                                <li class="flex items-start gap-2 text-sm text-green-800">
+                                                    <svg class="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                    </svg>
+                                                    <span>${useCase}</span>
+                                                </li>
+                                            `).join('')}
+                                        </ul>
+                                    </div>
+                                    
+                                    <!-- Next Steps -->
+                                    <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border-2 border-orange-200 p-6 shadow-md">
+                                        <div class="flex items-center gap-3 mb-4">
+                                            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                                            </svg>
+                                            <h4 class="text-lg font-bold text-orange-900">Next Steps</h4>
+                                        </div>
+                                        <ol class="space-y-3 text-sm text-orange-800">
+                                            <li class="flex items-start gap-2">
+                                                <span class="font-bold text-orange-600">1.</span>
+                                                <span>Download the design tokens JSON to integrate into your project</span>
+                                            </li>
+                                            <li class="flex items-start gap-2">
+                                                <span class="font-bold text-orange-600">2.</span>
+                                                <span>Review the component library and customize as needed</span>
+                                            </li>
+                                            <li class="flex items-start gap-2">
+                                                <span class="font-bold text-orange-600">3.</span>
+                                                <span>Test the color palette in your application context</span>
+                                            </li>
+                                            <li class="flex items-start gap-2">
+                                                <span class="font-bold text-orange-600">4.</span>
+                                                <span>Adjust spacing and typography to match your content needs</span>
+                                            </li>
+                                            <li class="flex items-start gap-2">
+                                                <span class="font-bold text-orange-600">5.</span>
+                                                <span>Use the live preview to see how components look in light/dark mode</span>
+                                            </li>
+                                        </ol>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Build "What Makes This Unique" Section
+                        const uniqueAspects = [];
+                        const autoFixesCount = result.validation?.color_accessibility?.auto_fixes_count || 0;
+                        const hasCustomComponents = components.length > 10;
+                        const hasIndustryOptimization = industry !== 'detected from description';
+                        
+                        if (hasIndustryOptimization) {
+                            uniqueAspects.push({
+                                title: 'Industry-Specific Optimization',
+                                description: `Tailored specifically for ${industry} industry standards and user expectations`,
+                                icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
+                            });
+                        }
+                        
+                        if (autoFixesCount === 0) {
+                            uniqueAspects.push({
+                                title: 'Accessibility First',
+                                description: 'All colors generated with WCAG AA compliance from the start - no corrections needed',
+                                icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
+                            });
+                        }
+                        
+                        if (philosophy === 'utility-first' && density === 'dense') {
+                            uniqueAspects.push({
+                                title: 'Power User Optimized',
+                                description: 'Designed for data-intensive applications with high information density',
+                                icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'
+                            });
+                        }
+                        
+                        if (hasCustomComponents) {
+                            uniqueAspects.push({
+                                title: 'Comprehensive Component Library',
+                                description: `${components.length} components including specialized ones for your product type`,
+                                icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10'
+                            });
+                        }
+                        
+                        if (generatedData.principles.clarity >= 9) {
+                            uniqueAspects.push({
+                                title: 'Maximum Readability',
+                                description: 'Ultra-high clarity design optimized for critical information display',
+                                icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'
+                            });
+                        }
+                        
+                        if (!uniqueAspects.length) {
+                            uniqueAspects.push({
+                                title: 'AI-Generated Customization',
+                                description: 'This design system was uniquely generated for your specific product requirements',
+                                icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z'
+                            });
+                        }
+                        
+                        const uniqueAspectsHtml = `
+                            <div class="mb-6">
+                                <div class="flex items-center gap-2 mb-4">
+                                    <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                                    </svg>
+                                    <div class="text-base font-bold text-gray-800 uppercase tracking-wide">What Makes This Unique</div>
+                                </div>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    ${uniqueAspects.map(aspect => `
+                                        <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border-2 border-indigo-200 p-5 shadow-md hover:shadow-lg transition-shadow">
+                                            <div class="flex items-center gap-3 mb-3">
+                                                <svg class="w-6 h-6 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${aspect.icon}"></path>
+                                                </svg>
+                                                <h4 class="text-base font-bold text-indigo-900">${aspect.title}</h4>
+                                            </div>
+                                            <p class="text-sm text-indigo-800 leading-relaxed">${aspect.description}</p>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                
+                                <div class="mt-6 bg-white rounded-xl border-2 border-gray-200 p-6 shadow-sm">
+                                    <h4 class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
+                                        </svg>
+                                        Customization Opportunities
+                                    </h4>
+                                    <ul class="space-y-2 text-sm text-gray-700">
+                                        <li class="flex items-start gap-2">
+                                            <svg class="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                            <span>Color tokens can be adjusted to match your exact brand guidelines</span>
+                                        </li>
+                                        <li class="flex items-start gap-2">
+                                            <svg class="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                            <span>Typography scale can be extended with additional sizes</span>
+                                        </li>
+                                        <li class="flex items-start gap-2">
+                                            <svg class="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                            <span>Component variants can be added based on your specific needs</span>
+                                        </li>
+                                        <li class="flex items-start gap-2">
+                                            <svg class="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                            <span>Spacing scale can be customized for your layout requirements</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Build Component Recommendations Section
+                        const componentPriority = {
+                            'Button': { priority: 'High', complexity: 'Low', usage: 'Primary actions, forms, navigation' },
+                            'Input': { priority: 'High', complexity: 'Low', usage: 'Forms, search, data entry' },
+                            'Card': { priority: 'High', complexity: 'Low', usage: 'Content containers, dashboards' },
+                            'Table': { priority: 'Medium', complexity: 'Medium', usage: 'Data display, lists' },
+                            'Modal': { priority: 'Medium', complexity: 'Medium', usage: 'Dialogs, confirmations' },
+                            'Navigation': { priority: 'High', complexity: 'Low', usage: 'Site navigation, menus' },
+                            'Header': { priority: 'High', complexity: 'Low', usage: 'Page headers, branding' },
+                            'Footer': { priority: 'Medium', complexity: 'Low', usage: 'Page footers, links' },
+                            'Sidebar': { priority: 'Medium', complexity: 'Medium', usage: 'Navigation, filters' },
+                            'DataTable': { priority: 'Medium', complexity: 'High', usage: 'Complex data visualization' },
+                            'Hero': { priority: 'Low', complexity: 'Low', usage: 'Landing pages, marketing' },
+                            'PricingTable': { priority: 'Low', complexity: 'Medium', usage: 'Pricing pages' },
+                            'Testimonial': { priority: 'Low', complexity: 'Low', usage: 'Marketing, social proof' }
+                        };
+                        
+                        // Categorize components
+                        const highPriorityComponents = [];
+                        const mediumPriorityComponents = [];
+                        const lowPriorityComponents = [];
+                        
+                        components.forEach(comp => {
+                            const info = componentPriority[comp.name] || { priority: 'Medium', complexity: 'Medium', usage: 'General purpose' };
+                            const componentInfo = { ...comp, ...info };
+                            
+                            if (info.priority === 'High') {
+                                highPriorityComponents.push(componentInfo);
+                            } else if (info.priority === 'Medium') {
+                                mediumPriorityComponents.push(componentInfo);
+                            } else {
+                                lowPriorityComponents.push(componentInfo);
+                            }
+                        });
+                        
+                        const componentRecommendationsHtml = `
+                            <div class="mb-6">
+                                <div class="flex items-center gap-2 mb-4">
+                                    <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                                    </svg>
+                                    <div class="text-base font-bold text-gray-800 uppercase tracking-wide">Component Recommendations</div>
+                                </div>
+                                
+                                ${highPriorityComponents.length > 0 ? `
+                                    <div class="mb-6">
+                                        <h4 class="text-sm font-bold text-green-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                            </svg>
+                                            High Priority (Start Here)
+                                        </h4>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            ${highPriorityComponents.map(comp => `
+                                                <div class="bg-green-50 rounded-lg border-2 border-green-200 p-4 shadow-sm">
+                                                    <div class="flex items-center justify-between mb-2">
+                                                        <h5 class="font-bold text-green-900">${comp.name}</h5>
+                                                        <span class="text-xs bg-green-200 text-green-800 px-2 py-1 rounded-full font-semibold">${comp.complexity}</span>
+                                                    </div>
+                                                    <p class="text-xs text-green-700 mb-2">${comp.usage}</p>
+                                                    <div class="text-xs text-green-600">
+                                                        <span class="font-semibold">Integration:</span> ${comp.complexity === 'Low' ? 'Simple - Copy & paste' : comp.complexity === 'Medium' ? 'Moderate - Some customization' : 'Complex - Requires setup'}
+                                                    </div>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                
+                                ${mediumPriorityComponents.length > 0 ? `
+                                    <div class="mb-6">
+                                        <h4 class="text-sm font-bold text-yellow-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            Medium Priority (Add as Needed)
+                                        </h4>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            ${mediumPriorityComponents.slice(0, 6).map(comp => `
+                                                <div class="bg-yellow-50 rounded-lg border-2 border-yellow-200 p-4 shadow-sm">
+                                                    <div class="flex items-center justify-between mb-2">
+                                                        <h5 class="font-bold text-yellow-900">${comp.name}</h5>
+                                                        <span class="text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded-full font-semibold">${comp.complexity}</span>
+                                                    </div>
+                                                    <p class="text-xs text-yellow-700 mb-2">${comp.usage}</p>
+                                                    <div class="text-xs text-yellow-600">
+                                                        <span class="font-semibold">Integration:</span> ${comp.complexity === 'Low' ? 'Simple' : comp.complexity === 'Medium' ? 'Moderate' : 'Complex'}
+                                                    </div>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                
+                                ${lowPriorityComponents.length > 0 ? `
+                                    <div class="mb-6">
+                                        <h4 class="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3 flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                                            </svg>
+                                            Optional Components
+                                        </h4>
+                                        <div class="flex flex-wrap gap-2">
+                                            ${lowPriorityComponents.map(comp => `
+                                                <span class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-medium border border-gray-300">
+                                                    ${comp.name}
+                                                </span>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                
+                                <div class="bg-blue-50 rounded-xl border-2 border-blue-200 p-6 shadow-sm mt-6">
+                                    <h4 class="text-base font-bold text-blue-900 mb-3 flex items-center gap-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        Integration Tips
+                                    </h4>
+                                    <ul class="space-y-2 text-sm text-blue-800">
+                                        <li class="flex items-start gap-2">
+                                            <span class="font-bold text-blue-600">•</span>
+                                            <span><strong>Start with High Priority components</strong> - These are essential for your product type</span>
+                                        </li>
+                                        <li class="flex items-start gap-2">
+                                            <span class="font-bold text-blue-600">•</span>
+                                            <span><strong>Low complexity components</strong> can be integrated immediately with minimal setup</span>
+                                        </li>
+                                        <li class="flex items-start gap-2">
+                                            <span class="font-bold text-blue-600">•</span>
+                                            <span><strong>Medium/High complexity components</strong> may require additional dependencies or configuration</span>
+                                        </li>
+                                        <li class="flex items-start gap-2">
+                                            <span class="font-bold text-blue-600">•</span>
+                                            <span><strong>Customize variants</strong> based on your specific use cases and design requirements</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Build Quick Start Guide
+                        const quickStartHtml = `
+                            <div class="mb-6">
+                                <div class="flex items-center gap-2 mb-4">
+                                    <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                    </svg>
+                                    <div class="text-base font-bold text-gray-800 uppercase tracking-wide">Quick Start Guide</div>
+                                </div>
+                                
+                                <div class="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-xl border-2 border-indigo-200 p-6 shadow-md">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <!-- React Integration -->
+                                        <div>
+                                            <h4 class="text-lg font-bold text-indigo-900 mb-3 flex items-center gap-2">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                                                </svg>
+                                                React Integration
+                                            </h4>
+                                            <ol class="space-y-2 text-sm text-indigo-800">
+                                                <li class="flex items-start gap-2">
+                                                    <span class="font-bold text-indigo-600">1.</span>
+                                                    <span>Download the design tokens JSON file</span>
+                                                </li>
+                                                <li class="flex items-start gap-2">
+                                                    <span class="font-bold text-indigo-600">2.</span>
+                                                    <span>Import tokens: <code class="bg-indigo-100 px-1 rounded">import tokens from './tokens.json'</code></span>
+                                                </li>
+                                                <li class="flex items-start gap-2">
+                                                    <span class="font-bold text-indigo-600">3.</span>
+                                                    <span>Use CSS variables or Tailwind config</span>
+                                                </li>
+                                                <li class="flex items-start gap-2">
+                                                    <span class="font-bold text-indigo-600">4.</span>
+                                                    <span>Import components from the generated library</span>
+                                                </li>
+                                            </ol>
+                                        </div>
+                                        
+                                        <!-- Next.js Integration -->
+                                        <div>
+                                            <h4 class="text-lg font-bold text-indigo-900 mb-3 flex items-center gap-2">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                                                </svg>
+                                                Next.js Integration
+                                            </h4>
+                                            <ol class="space-y-2 text-sm text-indigo-800">
+                                                <li class="flex items-start gap-2">
+                                                    <span class="font-bold text-indigo-600">1.</span>
+                                                    <span>Add tokens to <code class="bg-indigo-100 px-1 rounded">tailwind.config.js</code></span>
+                                                </li>
+                                                <li class="flex items-start gap-2">
+                                                    <span class="font-bold text-indigo-600">2.</span>
+                                                    <span>Create a <code class="bg-indigo-100 px-1 rounded">tokens.css</code> file with CSS variables</span>
+                                                </li>
+                                                <li class="flex items-start gap-2">
+                                                    <span class="font-bold text-indigo-600">3.</span>
+                                                    <span>Import in <code class="bg-indigo-100 px-1 rounded">_app.js</code> or <code class="bg-indigo-100 px-1 rounded">layout.js</code></span>
+                                                </li>
+                                                <li class="flex items-start gap-2">
+                                                    <span class="font-bold text-indigo-600">4.</span>
+                                                    <span>Use components in your pages</span>
+                                                </li>
+                                            </ol>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-6 pt-6 border-t-2 border-indigo-200">
+                                        <h4 class="text-lg font-bold text-indigo-900 mb-3">Customization Tips</h4>
+                                        <ul class="space-y-2 text-sm text-indigo-800">
+                                            <li class="flex items-start gap-2">
+                                                <svg class="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                </svg>
+                                                <span>Adjust spacing scale in <code class="bg-indigo-100 px-1 rounded">spacing</code> tokens for your layout needs</span>
+                                            </li>
+                                            <li class="flex items-start gap-2">
+                                                <svg class="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                </svg>
+                                                <span>Override color tokens to match your brand guidelines</span>
+                                            </li>
+                                            <li class="flex items-start gap-2">
+                                                <svg class="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                </svg>
+                                                <span>Extend component variants based on your specific use cases</span>
+                                            </li>
+                                            <li class="flex items-start gap-2">
+                                                <svg class="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                </svg>
+                                                <span>Test color combinations in both light and dark modes</span>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
                         resultsContent.innerHTML = `
                             ${heroCard}
                             ${metricsGrid}
                             ${aiInferences}
                             ${reasoningHtml}
                             ${validationHtml}
+                            ${recommendationsHtml}
+                            ${quickStartHtml}
+                            ${uniqueAspectsHtml}
+                            ${componentRecommendationsHtml}
                             ${statsFooter}
                         `;
                         results.classList.remove('hidden');
@@ -1818,11 +2362,47 @@
                 // Store current system for next comparison
                 previousDesignSystem = JSON.parse(JSON.stringify(generatedData));
 
-                // System Summary
+                // System Summary with Enhanced Insights
                 const summaryContent = document.getElementById('summaryContent');
                 if (summaryContent) {
                     const primaryColor = colors.find(c => c.role === 'primary' && (c.name.includes('500') || c.name.includes('450')))?.value || '#3b82f6';
                     const primaryName = colors.find(c => c.role === 'primary' && (c.name.includes('500') || c.name.includes('450')))?.name || 'primary-500';
+                    const colorRationale = generatedData.tokens?.color_rationale;
+                    const components = generatedData.component_library?.components || [];
+                    const topComponents = components.slice(0, 3).map(c => c.name);
+                    const headingFont = typography.find(t => t.role === 'heading')?.family || 'System';
+                    const bodyFont = typography.find(t => t.role === 'body')?.family || 'System';
+                    
+                    // Color Psychology
+                    let colorPsychology = '';
+                    const warmth = generatedData.principles.warmth;
+                    if (warmth <= 3) {
+                        colorPsychology = 'Cool colors convey professionalism and trust, ideal for enterprise and clinical applications.';
+                    } else if (warmth >= 7) {
+                        colorPsychology = 'Warm colors create energy and friendliness, perfect for consumer-facing products.';
+                    } else {
+                        colorPsychology = 'Balanced colors provide modern appeal while maintaining professional credibility.';
+                    }
+                    
+                    // Typography Rationale
+                    let typographyRationale = '';
+                    if (generatedData.principles.clarity >= 8) {
+                        typographyRationale = `High clarity typography (${headingFont} + ${bodyFont}) ensures excellent readability for critical information.`;
+                    } else {
+                        typographyRationale = `Typography system (${headingFont} + ${bodyFont}) balances readability with visual appeal.`;
+                    }
+                    
+                    // Component Highlights
+                    let componentHighlights = '';
+                    if (topComponents.length > 0) {
+                        componentHighlights = `Key components: ${topComponents.join(', ')}. These are essential for your product type.`;
+                    } else {
+                        componentHighlights = 'Component library includes all standard UI elements for your application.';
+                    }
+                    
+                    // Industry Alignment
+                    const industry = generatedData.principles?.industry_context?.industry || 'detected';
+                    let industryAlignment = `Optimized for ${industry} industry standards and best practices.`;
                     
                     summaryContent.innerHTML = `
                         <div class="flex items-center gap-4 p-4 bg-white rounded-lg border-2 border-gray-200 shadow-sm mb-4">
@@ -1852,11 +2432,105 @@
                                 <div class="font-bold text-gray-800 text-base">${generatedData.principles.clarity}/10</div>
                             </div>
                         </div>
-                        <div class="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+                        <div class="p-4 bg-blue-50 rounded-lg border border-blue-200 shadow-sm mb-3">
+                            <div class="text-xs text-blue-600 uppercase tracking-wide mb-2 font-semibold flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
+                                </svg>
+                                Color Psychology
+                            </div>
+                            <div class="text-sm text-blue-800">${colorPsychology}</div>
+                        </div>
+                        <div class="p-4 bg-purple-50 rounded-lg border border-purple-200 shadow-sm mb-3">
+                            <div class="text-xs text-purple-600 uppercase tracking-wide mb-2 font-semibold flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
+                                </svg>
+                                Typography Rationale
+                            </div>
+                            <div class="text-sm text-purple-800">${typographyRationale}</div>
+                        </div>
+                        <div class="p-4 bg-green-50 rounded-lg border border-green-200 shadow-sm mb-3">
+                            <div class="text-xs text-green-600 uppercase tracking-wide mb-2 font-semibold flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                                </svg>
+                                Component Highlights
+                            </div>
+                            <div class="text-sm text-green-800">${componentHighlights}</div>
+                        </div>
+                        <div class="p-4 bg-orange-50 rounded-lg border border-orange-200 shadow-sm">
+                            <div class="text-xs text-orange-600 uppercase tracking-wide mb-2 font-semibold flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                                </svg>
+                                Industry Alignment
+                            </div>
+                            <div class="text-sm text-orange-800">${industryAlignment}</div>
+                        </div>
+                        <div class="p-4 bg-white rounded-lg border border-gray-200 shadow-sm mt-3">
                             <div class="text-xs text-gray-500 uppercase tracking-wide mb-2">Token Count</div>
                             <div class="font-bold text-gray-800 text-sm">${colors.length} colors • ${typography.length} typography • ${spacing.length} spacing</div>
                         </div>
                     `;
+                }
+
+                // Primary Color Recommendations
+                const recommendationsSection = document.getElementById('primaryRecommendationsSection');
+                const recommendationsContainer = document.getElementById('primaryRecommendations');
+                const recommendations = generatedData.tokens?.primary_recommendations;
+                
+                if (recommendations && recommendations.length > 0 && recommendationsContainer) {
+                    recommendationsSection.style.display = 'block';
+                    recommendationsContainer.innerHTML = '';
+                    
+                    recommendations.forEach((rec, index) => {
+                        const card = document.createElement('div');
+                        card.className = `p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-lg ${index === 0 ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 bg-white'}`;
+                        card.setAttribute('data-recommendation-index', index);
+                        
+                        const primarySwatch = document.createElement('div');
+                        primarySwatch.className = 'h-16 rounded mb-2 flex items-center justify-center text-white font-bold text-sm';
+                        primarySwatch.style.backgroundColor = rec.primary;
+                        primarySwatch.textContent = 'Primary';
+                        primarySwatch.style.color = getContrastColor(rec.primary);
+                        
+                        const secondarySwatch = document.createElement('div');
+                        secondarySwatch.className = 'h-16 rounded mb-2 flex items-center justify-center text-white font-bold text-sm';
+                        secondarySwatch.style.backgroundColor = rec.secondary;
+                        secondarySwatch.textContent = 'Secondary';
+                        secondarySwatch.style.color = getContrastColor(rec.secondary);
+                        
+                        const hexDisplay = document.createElement('div');
+                        hexDisplay.className = 'text-xs font-mono mb-2 flex items-center justify-center gap-2';
+                        const primaryHex = createColoredHex(rec.primary, { size: 'sm', className: 'inline-block' });
+                        const secondaryHex = createColoredHex(rec.secondary, { size: 'sm', className: 'inline-block' });
+                        hexDisplay.appendChild(primaryHex);
+                        hexDisplay.appendChild(document.createTextNode(' + '));
+                        hexDisplay.appendChild(secondaryHex);
+                        
+                        const rationale = document.createElement('div');
+                        rationale.className = 'text-xs text-gray-600 mb-2';
+                        rationale.textContent = rec.rationale || `Recommendation ${index + 1}`;
+                        
+                        const selectBtn = document.createElement('button');
+                        selectBtn.className = `w-full py-2 px-3 rounded text-sm font-medium transition-colors ${index === 0 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`;
+                        selectBtn.textContent = index === 0 ? 'Selected' : 'Select';
+                        selectBtn.disabled = index === 0;
+                        
+                        selectBtn.addEventListener('click', () => {
+                            selectRecommendation(index, rec, colors, generatedData);
+                        });
+                        
+                        card.appendChild(primarySwatch);
+                        card.appendChild(secondarySwatch);
+                        card.appendChild(hexDisplay);
+                        card.appendChild(rationale);
+                        card.appendChild(selectBtn);
+                        recommendationsContainer.appendChild(card);
+                    });
+                } else if (recommendationsSection) {
+                    recommendationsSection.style.display = 'none';
                 }
 
                 // Primary Color Scale
@@ -1875,10 +2549,17 @@
                     
                     // Show hex value on hover
                     const tooltip = document.createElement('div');
-                    tooltip.className = 'absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs font-mono rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20';
-                    tooltip.textContent = `${color.name}\n${color.value}`;
-                    tooltip.style.whiteSpace = 'pre-line';
+                    tooltip.className = 'absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs font-mono rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20';
                     tooltip.style.textAlign = 'center';
+                    
+                    const nameSpan = document.createElement('div');
+                    nameSpan.textContent = color.name;
+                    nameSpan.className = 'mb-1';
+                    
+                    const hexDisplay = createColoredHex(color.value, { size: 'sm', className: 'inline-block' });
+                    
+                    tooltip.appendChild(nameSpan);
+                    tooltip.appendChild(hexDisplay);
                     swatch.appendChild(tooltip);
                     
                     // Add label for 500 weight
@@ -1910,36 +2591,102 @@
                     
                     // Show hex value on hover
                     const tooltip = document.createElement('div');
-                    tooltip.className = 'absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs font-mono rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20';
-                    tooltip.textContent = `${color.name}\n${color.value}`;
-                    tooltip.style.whiteSpace = 'pre-line';
+                    tooltip.className = 'absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs font-mono rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20';
                     tooltip.style.textAlign = 'center';
+                    
+                    const nameSpan = document.createElement('div');
+                    nameSpan.textContent = color.name;
+                    nameSpan.className = 'mb-1';
+                    
+                    const hexDisplay = createColoredHex(color.value, { size: 'sm', className: 'inline-block' });
+                    
+                    tooltip.appendChild(nameSpan);
+                    tooltip.appendChild(hexDisplay);
                     swatch.appendChild(tooltip);
                     
                     neutralScale.appendChild(swatch);
                 });
 
-                // Semantic Colors
+                // Secondary Color Scale
+                const secondaryScale = document.getElementById('secondaryScale');
+                const secondaryScaleSection = document.getElementById('secondaryScaleSection');
+                const secondaryColors = colors.filter(c => c.role === 'secondary');
+                
+                if (secondaryColors.length > 0 && secondaryScale) {
+                    secondaryScaleSection.style.display = 'block';
+                    secondaryScale.innerHTML = '';
+                    const sortedSecondary = secondaryColors.sort((a, b) => {
+                        const aNum = parseInt(a.name.split('-')[1]) || 0;
+                        const bNum = parseInt(b.name.split('-')[1]) || 0;
+                        return aNum - bNum;
+                    });
+                    sortedSecondary.forEach((color, index) => {
+                        const swatch = document.createElement('div');
+                        swatch.className = 'flex-1 h-full relative group cursor-pointer color-swatch transition-transform hover:scale-105';
+                        swatch.style.backgroundColor = color.value;
+                        swatch.title = `${color.name}: ${color.value}`;
+                        
+                        // Show hex value on hover
+                        const tooltip = document.createElement('div');
+                        tooltip.className = 'absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs font-mono rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20';
+                        tooltip.style.textAlign = 'center';
+                        
+                        const nameSpan = document.createElement('div');
+                        nameSpan.textContent = color.name;
+                        nameSpan.className = 'mb-1';
+                        
+                        const hexDisplay = createColoredHex(color.value, { size: 'sm', className: 'inline-block' });
+                        
+                        tooltip.appendChild(nameSpan);
+                        tooltip.appendChild(hexDisplay);
+                        swatch.appendChild(tooltip);
+                        
+                        secondaryScale.appendChild(swatch);
+                    });
+                } else if (secondaryScaleSection) {
+                    secondaryScaleSection.style.display = 'none';
+                }
+
+                // Semantic Colors with Enhanced Display
                 const semanticContainer = document.getElementById('semanticColors');
                 semanticContainer.innerHTML = '';
                 const semanticColors = colors.filter(c => c.role === 'semantic');
                 semanticColors.forEach(color => {
                     const card = document.createElement('div');
-                    card.className = 'rounded-lg p-4 text-center shadow-md transition-transform hover:scale-105 cursor-pointer';
+                    card.className = 'rounded-lg p-4 text-center shadow-md transition-transform hover:scale-105 cursor-pointer relative group';
                     card.style.backgroundColor = color.value;
                     card.style.color = getContrastColor(color.value);
+                    
+                    // Calculate contrast ratio
+                    const contrastRatio = getContrastRatio(color.value, '#FFFFFF');
+                    const isAccessible = contrastRatio >= 4.5;
                     
                     const name = document.createElement('div');
                     name.className = 'text-sm font-bold uppercase mb-2';
                     name.textContent = color.name.split('-')[0];
                     
                     const value = document.createElement('div');
-                    value.className = 'text-xs font-mono opacity-90';
-                    value.textContent = color.value;
+                    value.className = 'text-xs mb-2 flex items-center justify-center gap-2';
+                    const hexDisplay = createColoredHex(color.value, { size: 'sm', className: 'inline-block' });
+                    value.appendChild(hexDisplay);
+                    
+                    // Contrast ratio display
+                    const contrast = document.createElement('div');
+                    contrast.className = 'text-xs mb-2';
+                    contrast.textContent = `Contrast: ${contrastRatio.toFixed(2)}:1`;
+                    
+                    // Accessibility badge
+                    const badge = document.createElement('div');
+                    badge.className = `inline-block px-2 py-1 rounded-full text-[10px] font-bold ${isAccessible ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`;
+                    badge.textContent = isAccessible ? 'WCAG AA ✓' : 'Needs Fix';
                     
                     card.appendChild(name);
                     card.appendChild(value);
-                    card.title = `${color.name}: ${color.value}`;
+                    card.appendChild(contrast);
+                    card.appendChild(badge);
+                    
+                    // Enhanced tooltip
+                    card.title = `${color.name}: ${color.value}\nContrast: ${contrastRatio.toFixed(2)}:1\n${isAccessible ? 'WCAG AA Compliant' : 'Below WCAG AA (4.5:1)'}`;
                     semanticContainer.appendChild(card);
                 });
 
@@ -2030,6 +2777,131 @@
                 const error = colors.find(c => c.name.includes('error-500'))?.value || '#ef4444';
                 const success = colors.find(c => c.name.includes('success-500'))?.value || '#10b981';
 
+                // Function to handle recommendation selection
+                function selectRecommendation(index, recommendation, currentColors, generatedData) {
+                    // Update generatedData with new primary and secondary
+                    const newPrimary = recommendation.primary;
+                    const newSecondary = recommendation.secondary;
+                    
+                    // Regenerate primary scale
+                    const newPrimaryScale = generateColorScale(newPrimary, 'primary');
+                    const newSecondaryScale = generateColorScale(newSecondary, 'secondary');
+                    
+                    // Update colors array - replace primary and secondary colors
+                    const updatedColors = currentColors.filter(c => c.role !== 'primary' && c.role !== 'secondary');
+                    updatedColors.push(...newPrimaryScale);
+                    updatedColors.push(...newSecondaryScale);
+                    
+                    // Update generatedData
+                    generatedData.tokens.colors = updatedColors;
+                    
+                    // Update UI
+                    updatePreview();
+                    
+                    // Update recommendation cards UI
+                    const cards = document.querySelectorAll('[data-recommendation-index]');
+                    cards.forEach((card, i) => {
+                        if (i === index) {
+                            card.className = 'p-4 rounded-lg border-2 border-indigo-500 bg-indigo-50 cursor-pointer transition-all hover:shadow-lg';
+                            const btn = card.querySelector('button');
+                            btn.className = 'w-full py-2 px-3 rounded text-sm font-medium transition-colors bg-indigo-600 text-white';
+                            btn.textContent = 'Selected';
+                            btn.disabled = true;
+                        } else {
+                            card.className = 'p-4 rounded-lg border-2 border-gray-200 bg-white cursor-pointer transition-all hover:shadow-lg';
+                            const btn = card.querySelector('button');
+                            btn.className = 'w-full py-2 px-3 rounded text-sm font-medium transition-colors bg-gray-200 text-gray-700 hover:bg-gray-300';
+                            btn.textContent = 'Select';
+                            btn.disabled = false;
+                        }
+                    });
+                }
+                
+                // Helper function to generate color scale (simplified version of agent's logic)
+                function generateColorScale(baseHex, role) {
+                    const scale = [];
+                    const weights = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900];
+                    const rgb = hexToRgb(baseHex);
+                    
+                    // Convert RGB to HSL for better color manipulation
+                    const r = rgb.r / 255;
+                    const g = rgb.g / 255;
+                    const b = rgb.b / 255;
+                    const max = Math.max(r, g, b);
+                    const min = Math.min(r, g, b);
+                    let h, s, l = (max + min) / 2;
+                    
+                    if (max === min) {
+                        h = s = 0;
+                    } else {
+                        const d = max - min;
+                        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                        if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+                        else if (max === g) h = ((b - r) / d + 2) / 6;
+                        else h = ((r - g) / d + 4) / 6;
+                    }
+                    
+                    weights.forEach((weight) => {
+                        let newL, newS;
+                        if (weight === 500) {
+                            newL = l;
+                            newS = s;
+                        } else if (weight < 500) {
+                            // Lighter shades
+                            const factor = (500 - weight) / 500;
+                            newL = Math.min(0.95, l + (0.95 - l) * factor * 0.8);
+                            newS = Math.max(0.1, s * (1 - factor * 0.5));
+                        } else {
+                            // Darker shades
+                            const factor = (weight - 500) / 400;
+                            newL = Math.max(0.1, l * (1 - factor * 0.7));
+                            newS = Math.min(1.0, s * (1 + factor * 0.2));
+                        }
+                        
+                        const newRgb = hslToRgb(h, newL, newS);
+                        const hex = `#${newRgb.r.toString(16).padStart(2, '0')}${newRgb.g.toString(16).padStart(2, '0')}${newRgb.b.toString(16).padStart(2, '0')}`;
+                        scale.push({ name: `${role}-${weight}`, value: hex, role: role });
+                    });
+                    return scale;
+                }
+                
+                // Helper to convert HSL to RGB
+                function hslToRgb(h, l, s) {
+                    let r, g, b;
+                    if (s === 0) {
+                        r = g = b = l;
+                    } else {
+                        const hue2rgb = (p, q, t) => {
+                            if (t < 0) t += 1;
+                            if (t > 1) t -= 1;
+                            if (t < 1/6) return p + (q - p) * 6 * t;
+                            if (t < 1/2) return q;
+                            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                            return p;
+                        };
+                        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                        const p = 2 * l - q;
+                        r = hue2rgb(p, q, h + 1/3);
+                        g = hue2rgb(p, q, h);
+                        b = hue2rgb(p, q, h - 1/3);
+                    }
+                    return {
+                        r: Math.round(r * 255),
+                        g: Math.round(g * 255),
+                        b: Math.round(b * 255)
+                    };
+                }
+                
+                // Helper function to convert hex to RGB
+                function hexToRgb(hex) {
+                    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                    return result ? {
+                        r: parseInt(result[1], 16),
+                        g: parseInt(result[2], 16),
+                        b: parseInt(result[3], 16)
+                    } : { r: 0, g: 0, b: 0 };
+                }
+
                 // Helper function for contrast
                 function getContrastColor(hex) {
                     const r = parseInt(hex.slice(1, 3), 16);
@@ -2037,6 +2909,28 @@
                     const b = parseInt(hex.slice(5, 7), 16);
                     const brightness = (r * 299 + g * 587 + b * 114) / 1000;
                     return brightness > 128 ? '#000000' : '#ffffff';
+                }
+                
+                // Calculate contrast ratio (WCAG formula)
+                function getContrastRatio(color1, color2) {
+                    const getLuminance = (hex) => {
+                        const r = parseInt(hex.slice(1, 3), 16) / 255;
+                        const g = parseInt(hex.slice(3, 5), 16) / 255;
+                        const b = parseInt(hex.slice(5, 7), 16) / 255;
+                        
+                        const [rs, gs, bs] = [r, g, b].map(val => {
+                            return val <= 0.03928 ? val / 12.92 : Math.pow((val + 0.055) / 1.055, 2.4);
+                        });
+                        
+                        return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+                    };
+                    
+                    const lum1 = getLuminance(color1);
+                    const lum2 = getLuminance(color2);
+                    const lighter = Math.max(lum1, lum2);
+                    const darker = Math.min(lum1, lum2);
+                    
+                    return (lighter + 0.05) / (darker + 0.05);
                 }
 
                 // Button samples
@@ -2047,6 +2941,8 @@
                 buttonLabel.textContent = 'Buttons';
                 buttonSection.appendChild(buttonLabel);
                 
+                const secondaryColor = colors.find(c => c.name.includes('secondary-500') || c.name.includes('secondary-450'))?.value;
+                
                 const buttonRow = document.createElement('div');
                 buttonRow.className = 'flex gap-3 flex-wrap';
                 ['primary', 'secondary', 'danger'].forEach(variant => {
@@ -2056,9 +2952,15 @@
                         btn.style.backgroundColor = primary;
                         btn.style.color = 'white';
                     } else if (variant === 'secondary') {
-                        btn.style.backgroundColor = neutral;
-                        btn.style.color = text;
-                        btn.style.border = `2px solid ${border}`;
+                        // Use secondary color if available, otherwise use neutral
+                        if (secondaryColor) {
+                            btn.style.backgroundColor = secondaryColor;
+                            btn.style.color = getContrastColor(secondaryColor);
+                        } else {
+                            btn.style.backgroundColor = neutral;
+                            btn.style.color = text;
+                            btn.style.border = `2px solid ${border}`;
+                        }
                     } else {
                         btn.style.backgroundColor = error;
                         btn.style.color = 'white';

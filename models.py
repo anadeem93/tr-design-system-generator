@@ -1,7 +1,7 @@
 """Data models for the design system generator."""
 
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Literal
+from typing import List, Dict, Optional, Literal, Any
 from enum import Enum
 
 
@@ -105,6 +105,8 @@ class ColorRationale(BaseModel):
     primary: str = Field(..., description="Explanation for primary color choice")
     neutral: str = Field(..., description="Explanation for neutral color choice")
     accent: str = Field(..., description="Explanation for accent color choice")
+    secondary: Optional[str] = Field(default=None, description="Explanation for secondary color choice")
+    recommendations: Optional[List[str]] = Field(default=None, description="Rationale for each primary color recommendation")
     overall: str = Field(..., description="Overall color system rationale")
 
 
@@ -117,6 +119,7 @@ class DesignTokens(BaseModel):
     border_radius: Dict[str, str]
     shadows: Dict[str, str]
     color_rationale: Optional[ColorRationale] = None
+    primary_recommendations: Optional[List[Dict[str, Any]]] = Field(default=None, description="Multiple primary color recommendations with their secondary colors and rationales")
 
 
 class ComponentSpec(BaseModel):

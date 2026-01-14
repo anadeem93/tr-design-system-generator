@@ -82,8 +82,8 @@ IMPORTANT:
 - Return ONLY valid JSON, no markdown, no explanations outside JSON"""
 
     @staticmethod
-    def visual_identity_color_prompt(principles: DesignPrinciples, industry: str, industry_colors: Optional[Dict]) -> str:
-        """Generate sophisticated prompt for color generation."""
+    def visual_identity_color_prompt(principles: DesignPrinciples, industry: str, industry_colors: Optional[Dict], product_idea: str = "") -> str:
+        """Generate sophisticated prompt for color generation with diversity requirements."""
         
         color_suggestion = ""
         if industry_colors:
@@ -99,11 +99,19 @@ You may use these as inspiration but create a unique palette that fits the speci
 
 TASK: Generate a professional, accessible color palette that aligns with the design principles and product context.
 
+PRODUCT CONTEXT: {product_idea[:200] if product_idea else "Not provided"}
+
+IMPORTANT FOR COLOR DIVERSITY:
+- Generate a UNIQUE color that is SPECIFIC to this exact product description
+- If you see similar product descriptions, still generate DIFFERENT colors
+- Use the product context to create a distinctive color palette
+- Avoid default/common colors - be creative and specific
+
 DESIGN PRINCIPLES:
 - Philosophy: {principles.philosophy}
 - Warmth: {principles.warmth}/10 ({'warm' if principles.warmth >= 7 else 'cool' if principles.warmth <= 3 else 'neutral'})
 - Density: {principles.density}
-- Clarity: {principles.warmth}/10 (high clarity requires high contrast)
+- Clarity: {principles.clarity}/10 (high clarity requires high contrast)
 
 INDUSTRY: {industry}
 {color_suggestion}
@@ -114,12 +122,17 @@ REASONING PROCESS:
    - Warmth 4-6: Balanced colors (teals, purples) - modern, approachable
    - Warmth 7-10: Warm colors (oranges, reds, yellows) - energetic, friendly
 
-2. Select primary color:
-   - MUST be accessible from the start (WCAG AA contrast on white >= 4.5:1)
-   - For 4.5:1 contrast on white, choose a DARKER shade (lightness typically 0.3-0.5)
-   - Should align with industry standards but be unique
-   - Consider the product's emotional goals
-   - IMPORTANT: Choose a darker shade that naturally meets contrast, don't rely on post-processing adjustments
+2. Select 3 PRIMARY COLOR RECOMMENDATIONS (CRITICAL - Must be UNIQUE and DISTINCTIVE):
+   - Each recommendation should include a primary AND secondary color that work well together
+   - All colors MUST be accessible from the start (WCAG AA contrast on white >= 4.5:1)
+   - For 4.5:1 contrast on white, choose DARKER shades (lightness typically 0.3-0.5)
+   - Should align with industry standards but be UNIQUE and DISTINCTIVE
+   - AVOID common/overused colors (e.g., #3b82f6, #6366f1, #8b5cf6, #10b981)
+   - Consider the product's emotional goals and create colors that stand out
+   - IMPORTANT: Choose darker shades that naturally meet contrast, don't rely on post-processing adjustments
+   - Generate colors that are SPECIFIC to this product, not generic palettes
+   - Make the 3 recommendations DIFFERENT from each other (different hues, saturations, or emotional tones)
+   - Secondary colors should complement their primary (use color theory: complementary, analogous, or triadic)
 
 3. Select neutral/base color:
    - Should complement primary
@@ -140,16 +153,33 @@ REASONING PROCESS:
 
 OUTPUT FORMAT (JSON only):
 {{
-  "primary": "<hex_code>",
+  "primary_recommendations": [
+    {{
+      "primary": "<hex_code>",
+      "secondary": "<hex_code>",
+      "rationale": "<brief explanation of why this combination works for the product>"
+    }},
+    {{
+      "primary": "<hex_code>",
+      "secondary": "<hex_code>",
+      "rationale": "<brief explanation of why this combination works for the product>"
+    }},
+    {{
+      "primary": "<hex_code>",
+      "secondary": "<hex_code>",
+      "rationale": "<brief explanation of why this combination works for the product>"
+    }}
+  ],
   "neutral": "<hex_code>",
   "accent": "<hex_code>",
-  "rationale": "<2-3 sentence explanation of color choices and how they support the design principles>"
+  "overall_rationale": "<2-3 sentence explanation of color choices and how they support the design principles>"
 }}
 
 IMPORTANT:
-- Generate unique colors for this specific product (not generic palettes)
+- Generate UNIQUE, DISTINCTIVE colors for this specific product (not generic palettes)
+- Avoid common/overused color combinations
 - Ensure all colors are accessible
-- Explain how colors support the design principles
+- Explain how colors support the design principles and make this product stand out
 - Return ONLY valid JSON"""
 
     @staticmethod
