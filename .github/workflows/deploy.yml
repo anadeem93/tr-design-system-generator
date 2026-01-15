@@ -50,7 +50,7 @@ jobs:
             --memory 1Gi \
             --timeout 300 \
             --max-instances 10 \
-            --quiet
+            --quiet || (echo "❌ Deployment failed. Checking logs..." && gcloud run services logs read ${{ env.SERVICE_NAME }} --region ${{ env.REGION }} --limit 50 && exit 1)
 
       - name: 'Get Service URL'
         id: service-url
@@ -64,5 +64,16 @@ jobs:
 
       - name: 'Health Check'
         run: |
-          sleep 10
-          curl -f ${{ steps.service-url.outputs.url }}/health || exit 1
+          echo "Waiting for service to be ready..."
+          sleep 15
+          for i in {1..6}; do
+            if curl -f ${{ steps.service-url.outputs.url }}/health; then
+              echo "✅ Health check passed"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 5 seconds..."
+            sleep 5
+          done
+          echo "❌ Health check failed after 6 attempts"
+          echo "Service URL: ${{ steps.service-url.outputs.url }}"
+          exit 1
