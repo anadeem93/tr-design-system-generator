@@ -50,6 +50,7 @@ jobs:
             --memory 1Gi \
             --timeout 300 \
             --max-instances 10 \
+            --service-account=986869868532-compute@developer.gserviceaccount.com \
             --quiet || (echo "❌ Deployment failed. Checking logs..." && gcloud run services logs read ${{ env.SERVICE_NAME }} --region ${{ env.REGION }} --limit 50 && exit 1)
 
       - name: 'Get Service URL'
